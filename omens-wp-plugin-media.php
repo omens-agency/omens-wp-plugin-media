@@ -4,7 +4,7 @@
  * Plugin URI:        https://github.com/omens-agency/omens-wp-plugin-media
  * Update URI:        https://github.com/omens-agency/omens-wp-plugin-media
  * Description:       Turns upload filenames into readable media metadata. Fills alt text and title on upload; caption and description on request. Never overwrites a value a human wrote.
- * Version:           1.0.0
+ * Version:           1.0.1
  * Requires at least: 6.4
  * Requires PHP:      8.1
  * Author:            Omens Agency
@@ -20,7 +20,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'OMENS_MEDIA_VERSION', '1.0.0' );
+define( 'OMENS_MEDIA_VERSION', '1.0.1' );
 define( 'OMENS_MEDIA_FILE', __FILE__ );
 define( 'OMENS_MEDIA_DIR', plugin_dir_path( __FILE__ ) );
 
