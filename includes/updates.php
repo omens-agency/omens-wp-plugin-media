@@ -39,5 +39,7 @@ add_action(
 		if ( defined( 'OMENS_PLUGIN_UPDATE_TOKEN' ) && OMENS_PLUGIN_UPDATE_TOKEN ) {
 			$checker->setAuthentication( OMENS_PLUGIN_UPDATE_TOKEN );
 		}
+		// For a manual probe: wp eval '$GLOBALS["omens_media_updater"]->checkForUpdates();'
+		$GLOBALS['omens_media_updater'] = $checker;
 	}
 );
