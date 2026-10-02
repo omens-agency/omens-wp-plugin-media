@@ -43,3 +43,31 @@ add_action(
 		$GLOBALS['omens_media_updater'] = $checker;
 	}
 );
+
+/**
+ * GitHub's "Download ZIP" unpacks to omens-wp-plugin-media-main. WordPress runs it, but a
+ * later install from the release zip lands beside it as a second copy. Say so
+ * on the Plugins screen so the folder gets fixed before that happens.
+ */
+add_action(
+	'admin_notices',
+	function () {
+		$folder = basename( dirname( OMENS_MEDIA_FILE ) );
+		if ( 'omens-wp-plugin-media' === $folder || ! current_user_can( 'activate_plugins' ) ) {
+			return;
+		}
+		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+		if ( ! $screen || 'plugins' !== $screen->id ) {
+			return;
+		}
+		echo '<div class="notice notice-warning"><p>' . esc_html(
+			sprintf(
+				/* translators: 1: plugin name, 2: folder it is in, 3: folder it should be in */
+				'%1$s is installed in the "%2$s" folder instead of "%3$s". Deactivate it, rename the folder to %3$s, and activate it again, so the next update replaces it instead of installing a second copy.',
+				'Omens Media Metadata',
+				$folder,
+				'omens-wp-plugin-media'
+			)
+		) . '</p></div>';
+	}
+);
