@@ -2,7 +2,7 @@
 
 Turns upload filenames into readable media metadata. Fills **alt text** and **title** on upload, **caption** and **description** only when a project asks for them, and never overwrites a value a human wrote.
 
-Built 2026-08-31 to replace WPGO **SEO Media Manager** ($169/yr) on custom builds. The house rule in `../spec/plugin-baseline.md` is that 30 lines of owned code beat a 30-feature plugin, and this is about 300. Repo: `github.com/omens-agency/omens-wp-plugin-media` (private). Plugin folder and slug: `omens-wp-plugin-media`.
+Built 2026-08-31 to replace WPGO **SEO Media Manager** ($169/yr) on custom builds. The house rule in `../spec/plugin-baseline.md` is that 30 lines of owned code beat a 30-feature plugin, and this is about 300. Repo: `github.com/omens-agency/omens-wp-plugin-media` (public, decided 2026-11-02). Plugin folder and slug: `omens-wp-plugin-media`.
 
 ## Why it is a plugin, not theme code
 
@@ -86,15 +86,13 @@ Safe to re-run: every field is written only when empty, so a second pass tops up
 
 ## Installing and updating on a site
 
-First install is by zip: download the latest release asset from GitHub (or run `git archive --format=zip --prefix=omens-wp-plugin-media/ HEAD`) and upload it at Plugins > Add New > Upload, or copy the folder in. After that the plugin updates itself.
+First install is by zip: the latest release asset on GitHub, uploaded at Plugins > Add New > Upload, installed with `wp plugin install <asset-url> --activate`, or pushed through Pressable's plugin installer. After that the plugin updates itself.
 
-Updates come from GitHub releases through Plugin Update Checker (`includes/updates.php`, library vendored in `vendor/`). Because the repo is private, each site needs a read-only GitHub token in wp-config, the same one for every `omens-wp-plugin-*` repo:
+Updates come from GitHub releases through Plugin Update Checker (`includes/updates.php`, library vendored in `vendor/`). The repo is public (decided 2026-11-02), so no token is needed; it went public so sites on purchased themes (which never got `OMENS_PLUGIN_UPDATE_TOKEN`) could take it over from SEO Media Manager. If a site defines the token for the private `omens-wp-plugin-*` repos it is still sent.
 
-```php
-define( 'OMENS_PLUGIN_UPDATE_TOKEN', 'github_pat_...' );
-```
+From 1.0.3 the plugin also **applies** its own updates: an `auto_update_plugin` filter answers yes for this slug when the package is one of our GitHub release assets. The starter theme does the same for every `omens-wp-plugin-*` slug (`library/php/omens.php`); the plugin carries the switch itself so purchased-theme sites get it too. A release lands on every site within about twelve hours through WordPress's update cron. Sites on 1.0.2 or older need one manual update to 1.0.3 to get the switch.
 
-Fine-grained token, Contents: read-only, scoped to the `omens-wp-plugin-*` repos. Without it the plugin still works; it just never learns about new versions. The starter theme turns automatic updates on for `omens-wp-plugin-*` slugs (`library/php/omens.php`), so once the token is in place nobody has to click Update.
+Because releases apply themselves, gate them: `PRERELEASE=1 tools/release.sh <version>` publishes a pre-release, which the update checker ignores. Install that zip by hand on a staging site, check an upload, then promote it with `gh release edit v<version> --prerelease=false`.
 
 ## Releasing
 
