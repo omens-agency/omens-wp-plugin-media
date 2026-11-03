@@ -51,11 +51,15 @@ function omens_media_settings() {
  *
  * @param int  $attachment_id Attachment post ID.
  * @param bool $dry_run       When true, work out the changes and write nothing.
- * @return array{filled: string[], skipped: string[], text: string} What changed, or would have.
+ * @return array{filled: string[], written: string[], skipped: string[], text: string}
+ *         filled: fields that are empty or placeholders and get the text (on a dry
+ *         run, would get it); written: the subset that was actually saved this call
+ *         (always empty on a dry run); skipped: why the others were left alone.
  */
 function omens_media_fill( $attachment_id, $dry_run = false ) {
 	$result = array(
 		'filled'  => array(),
+		'written' => array(),
 		'skipped' => array(),
 		'text'    => '',
 	);
@@ -69,14 +73,28 @@ function omens_media_fill( $attachment_id, $dry_run = false ) {
 
 	$settings = omens_media_settings();
 
-	if ( $settings['images_only'] && ! wp_attachment_is_image( $attachment_id ) ) {
+	if ( $settings['images_only'] && ! omens_media_takes_alt( $attachment_id ) ) {
 		$result['skipped'][] = 'not-an-image';
 		return $result;
 	}
 
-	$file = get_post_meta( $attachment_id, '_wp_attached_file', true );
-	$file = $file ? $file : $attachment->post_title;
-	$text = omens_media_humanize( $file, $settings['case'] );
+	// The filename is the only source. An attachment with no file on record
+	// (offloaded media, a broken import) is skipped: feeding its title back in
+	// as if it were a filename made a human-written title look like a
+	// placeholder and re-cased it, which is the one thing this plugin must
+	// never do. The GUID is tried first because core sets it to the file URL.
+	$file = (string) get_post_meta( $attachment_id, '_wp_attached_file', true );
+	if ( '' === $file ) {
+		$guid = wp_basename( (string) $attachment->guid );
+		$file = ( '' !== $guid && false !== strpos( $guid, '.' ) ) ? $guid : '';
+	}
+	if ( '' === $file ) {
+		$result['skipped'][] = 'no-file';
+		return $result;
+	}
+
+	// omens_media_stem() drops core's -scaled and -WxH suffixes before humanizing.
+	$text = omens_media_humanize( wp_basename( $file ), $settings['case'] );
 
 	if ( '' === $text ) {
 		// A camera default or a hash. Reported, never guessed at.
@@ -84,17 +102,27 @@ function omens_media_fill( $attachment_id, $dry_run = false ) {
 		return $result;
 	}
 
+	// Core sanitizes alt and title the same way on every write of its own;
+	// a filename set by an importer or offload plugin bypasses the upload
+	// sanitizer, so do it here before the text reaches the database.
+	$text = sanitize_text_field( $text );
+	if ( '' === $text ) {
+		$result['skipped'][] = 'meaningless-filename';
+		return $result;
+	}
+
 	$result['text'] = $text;
 
-	// Alt text lives in meta, not the post row.
-	if ( $settings['alt'] ) {
+	// Alt text lives in meta, not the post row, and only images (SVG included)
+	// take it; writing it to a PDF or a video would just inflate the count.
+	if ( $settings['alt'] && omens_media_takes_alt( $attachment_id ) ) {
 		$existing = get_post_meta( $attachment_id, '_wp_attachment_image_alt', true );
 
 		if ( '' === trim( (string) $existing ) ) {
-			if ( ! $dry_run ) {
-				update_post_meta( $attachment_id, '_wp_attachment_image_alt', $text );
-			}
 			$result['filled'][] = 'alt';
+			if ( ! $dry_run && false !== update_post_meta( $attachment_id, '_wp_attachment_image_alt', $text ) ) {
+				$result['written'][] = 'alt';
+			}
 		} else {
 			$result['skipped'][] = 'alt-already-set';
 		}
@@ -113,10 +141,19 @@ function omens_media_fill( $attachment_id, $dry_run = false ) {
 			continue;
 		}
 
-		// A title equal to the raw filename is WordPress's placeholder, not an edit.
-		$current     = (string) $attachment->$column;
+		$current = (string) $attachment->$column;
+
+		// Already what we would write (a one-word filename whose only capital
+		// is the first letter, an acronym, a site on case => none). Not a
+		// fill: counting it as one made the backfill report the same
+		// attachments as "would fill" on every run, with nothing to write.
+		if ( $current === $text ) {
+			$result['skipped'][] = $field . '-already-set';
+			continue;
+		}
+
 		$is_untouched = '' === trim( $current )
-			|| ( 'title' === $field && $current === pathinfo( (string) $file, PATHINFO_FILENAME ) );
+			|| ( 'title' === $field && omens_media_is_placeholder_title( $current, $file ) );
 
 		if ( $is_untouched ) {
 			$update[ $column ]  = $text;
@@ -127,12 +164,21 @@ function omens_media_fill( $attachment_id, $dry_run = false ) {
 	}
 
 	if ( $update && ! $dry_run ) {
-		$update['ID'] = $attachment_id;
+		$columns_written = array_keys( $update );
+		$update['ID']    = $attachment_id;
 
-		// Unhook first: wp_update_post fires save_post, which would re-enter this.
-		remove_action( 'add_attachment', 'omens_media_on_upload' );
-		wp_update_post( $update );
-		add_action( 'add_attachment', 'omens_media_on_upload' );
+		// wp_update_post on an attachment fires edit_attachment, not
+		// add_attachment, so there is no re-entry to guard against.
+		$saved = wp_update_post( $update, true );
+		if ( $saved && ! is_wp_error( $saved ) ) {
+			foreach ( $columns as $field => $column ) {
+				if ( in_array( $column, $columns_written, true ) ) {
+					$result['written'][] = $field;
+				}
+			}
+		} else {
+			$result['skipped'][] = 'write-failed';
+		}
 	}
 
 	/**
@@ -145,6 +191,51 @@ function omens_media_fill( $attachment_id, $dry_run = false ) {
 	do_action( 'omens_media/filled', $attachment_id, $result, $dry_run );
 
 	return $result;
+}
+
+/**
+ * Whether an attachment is the kind that carries alt text.
+ *
+ * wp_attachment_is_image() knows jpg, gif, png, webp, avif and heic. SVG
+ * logos, the images most likely to need alt text, are not on that list, so
+ * they are added here. Used for the alt write, the images_only switch and
+ * the media-library column, so all three agree.
+ *
+ * @param int $attachment_id Attachment post ID.
+ * @return bool
+ */
+function omens_media_takes_alt( $attachment_id ) {
+	return wp_attachment_is_image( $attachment_id ) || 'image/svg+xml' === get_post_mime_type( $attachment_id );
+}
+
+/**
+ * Whether a title is WordPress's own placeholder for the file, not an edit.
+ *
+ * Core sets post_title to the filename stem at upload, then may rename the
+ * file: to <stem>-scaled for a large image, to <stem>-1 on a name collision.
+ * So the placeholder matches the current filename, or the filename with
+ * those suffixes removed, exactly or after both are slugified (the admin
+ * uploader turns spaces into dashes in the file but not in the title).
+ *
+ * @param string $title Current post_title.
+ * @param string $file  _wp_attached_file (any path; only the basename is used).
+ * @return bool
+ */
+function omens_media_is_placeholder_title( $title, $file ) {
+	$stem = pathinfo( wp_basename( (string) $file ), PATHINFO_FILENAME );
+	$base = preg_replace( '/-scaled$/', '', $stem );
+	$base = preg_replace( '/-\d+$/', '', (string) $base );
+
+	foreach ( array_unique( array( $stem, (string) $base ) ) as $candidate ) {
+		if ( '' === $candidate ) {
+			continue;
+		}
+		if ( $title === $candidate || sanitize_title( $title ) === sanitize_title( $candidate ) ) {
+			return true;
+		}
+	}
+
+	return false;
 }
 
 /**
@@ -192,7 +283,7 @@ function omens_media_alt_column_content( $column, $attachment_id ) {
 		return;
 	}
 
-	if ( ! wp_attachment_is_image( $attachment_id ) ) {
+	if ( ! omens_media_takes_alt( $attachment_id ) ) {
 		echo '<span aria-hidden="true">&mdash;</span>';
 		return;
 	}

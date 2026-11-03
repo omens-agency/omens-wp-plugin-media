@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * names browsers and chat apps produce. A filename matching one of these must
  * never become alt text: "Img 4523" read aloud by a screen reader is worse than
  * silence, because it sounds like content and is not. WCAG 2.2 AA is a launch
- * gate here (CONVENTIONS.md), so these are reported for a human instead.
+ * gate on every build, so these are reported for a human instead.
  *
  * @return string[] Regular expressions, matched case-insensitively against the
  *                  extension-stripped filename.
@@ -70,8 +70,9 @@ function omens_media_is_meaningless( $filename ) {
 		}
 	}
 
-	// A name with no letters at all cannot describe anything.
-	if ( ! preg_match( '/[a-z]/i', $stem ) ) {
+	// A name with no letters at all cannot describe anything. Any script counts:
+	// a Greek or Japanese filename is a description too.
+	if ( ! preg_match( '/\p{L}/u', $stem ) ) {
 		return true;
 	}
 
@@ -88,7 +89,7 @@ function omens_media_is_meaningless( $filename ) {
  * Deliberately does NOT strip a trailing -1 / -2 counter. Core appends those on
  * a filename collision, but photographers number their frames the same way, and
  * the two are indistinguishable from the string alone. Tested against the
- * Westbourne library: stripping turns hero-2.jpg into "Hero" and morton-95.jpg
+ * a client library: stripping turns hero-2.jpg into "Hero" and morton-95.jpg
  * into "Morton". Leaving a deduped logo-1.png as "Logo 1" is the cheaper error.
  *
  * @param string $filename Filename or path.
@@ -116,7 +117,7 @@ function omens_media_stem( $filename ) {
  *
  * The defaults are conservative on purpose. Only unambiguous acronyms belong
  * here: two-letter entries in particular collide with ordinary words. "la" was
- * tried and removed, because it turned the Westbourne library's La Jolla shoot
+ * tried and removed, because it turned a client library's La Jolla shoot
  * into "LA Jolla". A wrong expansion is worse than a missing one.
  *
  * @return array{small: string[], acronyms: array<string, string>}
@@ -168,7 +169,7 @@ function omens_media_humanize( $filename, $case = 'title' ) {
 	$text = rawurldecode( $text );
 
 	// camelCase and PascalCase to spaced words, before separators are collapsed.
-	$text = preg_replace( '/([a-z0-9])([A-Z])/', '$1 $2', $text );
+	$text = preg_replace( '/([a-z0-9])([A-Z])/u', '$1 $2', $text );
 
 	// Every common separator becomes a space.
 	$text = preg_replace( '/[-_.+]+/', ' ', $text );

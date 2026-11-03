@@ -61,7 +61,14 @@ class Omens_Media_CLI {
 		$overrides = array();
 
 		if ( $fields ) {
-			foreach ( array( 'alt', 'title', 'caption', 'description' ) as $field ) {
+			$known   = array( 'alt', 'title', 'caption', 'description' );
+			$unknown = array_diff( $fields, $known );
+			if ( $unknown ) {
+				// Silently turning every field off (what an unknown name used to do)
+				// looked like a run that found nothing to fill.
+				WP_CLI::error( sprintf( 'Unknown field(s): %s. Use any of: %s.', implode( ', ', $unknown ), implode( ', ', $known ) ) );
+			}
+			foreach ( $known as $field ) {
 				$overrides[ $field ] = in_array( $field, $fields, true );
 			}
 		}
@@ -99,6 +106,8 @@ class Omens_Media_CLI {
 		}
 
 		$filled       = 0;
+		$written      = 0;
+		$failed       = array();
 		$untouched    = 0;
 		$meaningless  = array();
 		$progress     = WP_CLI\Utils\make_progress_bar(
@@ -114,7 +123,13 @@ class Omens_Media_CLI {
 			} elseif ( $result['filled'] ) {
 				++$filled;
 
-				if ( ! $apply ) {
+				if ( $apply ) {
+					if ( $result['written'] ) {
+						++$written;
+					} else {
+						$failed[] = $id;
+					}
+				} else {
 					WP_CLI::log(
 						sprintf(
 							'  #%d  %s  ->  %s',
@@ -156,7 +171,10 @@ class Omens_Media_CLI {
 			return;
 		}
 
-		WP_CLI::success( sprintf( '%d attachments updated.', $filled ) );
+		if ( $failed ) {
+			WP_CLI::warning( sprintf( '%d attachments could not be written: %s', count( $failed ), implode( ', ', array_slice( $failed, 0, 50 ) ) ) );
+		}
+		WP_CLI::success( sprintf( '%d attachments updated.', $written ) );
 	}
 
 	/**
