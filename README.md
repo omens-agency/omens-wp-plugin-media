@@ -1,3 +1,5 @@
+<img src="assets/icon-128x128.png" width="64" height="64" alt="" align="left"> 
+
 # Omens Media Metadata
 
 Turns upload filenames into readable media metadata. Fills **alt text** and **title** on upload, **caption** and **description** only when a project asks for them, and never overwrites a value a human wrote.
