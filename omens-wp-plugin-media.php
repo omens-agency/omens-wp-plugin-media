@@ -6,6 +6,7 @@
  * Description:       Turns descriptive filenames into alt text and titles as you upload, and flags the images it can't describe. It never overwrites what you've written.
  * Version:           1.0.5
  * Requires at least: 6.4
+ * Tested up to:      7.1
  * Requires PHP:      8.1
  * Author:            Omens Agency
  * Author URI:        https://omens.agency
