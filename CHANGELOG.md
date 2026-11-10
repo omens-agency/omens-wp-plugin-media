@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.6
+
+- **Renamed to Omens Alt Text.** The display name on the Plugins screen and in the wrong-folder notice changes; the slug, folder, text domain, filters, WP-CLI commands and update channel do not, so sites update in place with no action. "Metadata" was the only jargon in the name, and alt text is the job site owners recognize (WordPress calls the field Alternative Text).
+
 ## 1.0.5 (2026-11-03)
 
 Hardening round from the 2026-11-03 Dev Team audit. Upload-time behavior is unchanged except where noted; the backfill gets the fixes.

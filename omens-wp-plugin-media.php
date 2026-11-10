@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name:       Omens Media Metadata
+ * Plugin Name:       Omens Alt Text
  * Plugin URI:        https://github.com/omens-agency/omens-wp-plugin-media
  * Update URI:        https://github.com/omens-agency/omens-wp-plugin-media
  * Description:       Turns descriptive filenames into alt text and titles as you upload, and flags the images it can't describe. It never overwrites what you've written.

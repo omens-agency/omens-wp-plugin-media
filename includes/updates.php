@@ -77,7 +77,7 @@ add_action(
 			sprintf(
 				/* translators: 1: plugin name, 2: folder it is in, 3: folder it should be in */
 				'%1$s is installed in the "%2$s" folder instead of "%3$s". Deactivate it, rename the folder to %3$s, and activate it again, so the next update replaces it instead of installing a second copy.',
-				'Omens Media Metadata',
+				'Omens Alt Text',
 				$folder,
 				'omens-wp-plugin-media'
 			)
