@@ -4,7 +4,7 @@
  * Plugin URI:        https://github.com/omens-agency/omens-wp-plugin-media
  * Update URI:        https://github.com/omens-agency/omens-wp-plugin-media
  * Description:       Turns descriptive filenames into alt text and titles as you upload, and flags the images it can't describe. It never overwrites what you've written.
- * Version:           1.0.5
+ * Version:           1.0.6
  * Requires at least: 6.4
  * Tested up to:      7.1
  * Requires PHP:      8.1
@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'OMENS_MEDIA_VERSION', '1.0.5' );
+define( 'OMENS_MEDIA_VERSION', '1.0.6' );
 define( 'OMENS_MEDIA_FILE', __FILE__ );
 define( 'OMENS_MEDIA_DIR', plugin_dir_path( __FILE__ ) );
 
